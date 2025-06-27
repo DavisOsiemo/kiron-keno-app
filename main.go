@@ -9,33 +9,68 @@ import (
 	"net/http"
 	"time"
 
-	cron "github.com/robfig/cron/v3"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/robfig/cron/v3"
 )
+
+const endpoint = "http://vseintegration.kironinteractive.com:8013/vsegameserver/dataservice/UpcomingEvents?hours=4&type=Keno"
+
+// CustomTime handles timestamps without timezone info
+type CustomTime struct {
+	time.Time
+}
+
+const customLayout = "2006-01-02T15:04:05"
+
+func (ct *CustomTime) UnmarshalXMLAttr(attr xml.Attr) error {
+	t, err := time.Parse(customLayout, attr.Value)
+	if err != nil {
+		return err
+	}
+	ct.Time = t
+	return nil
+}
+
+type UpcomingEvents struct {
+	XMLName       xml.Name    `xml:"UpcomingEvents"`
+	LocalTime     CustomTime  `xml:"LocalTime,attr"`
+	UtcTime       CustomTime  `xml:"UtcTime,attr"`
+	RoundTripTime CustomTime  `xml:"RoundTripTime,attr"`
+	KenoEvents    []KenoEvent `xml:"KenoEvent"`
+}
+
+type KenoEvent struct {
+	ID          int64      `xml:"ID,attr"`
+	EventType   string     `xml:"EventType,attr"`
+	EventNumber string     `xml:"EventNumber,attr"`
+	EventTime   CustomTime `xml:"EventTime,attr"`
+	FinishTime  CustomTime `xml:"FinishTime,attr"`
+	EventStatus string     `xml:"EventStatus,attr"`
+}
 
 func main() {
 	// Fetch XML data
 	resp, err := http.Get(endpoint)
 	if err != nil {
-		log.Fatalf("Failed to fetch data: %v", err)
+		log.Fatalf("❌ Failed to fetch data: %v", err)
 	}
 	defer resp.Body.Close()
 
 	xmlData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response: %v", err)
+		log.Fatalf("❌ Failed to read response: %v", err)
 	}
 
 	var events UpcomingEvents
 	if err := xml.Unmarshal(xmlData, &events); err != nil {
-		log.Fatalf("Failed to parse XML: %v", err)
+		log.Fatalf("❌ Failed to parse XML: %v", err)
 	}
 
 	// Connect to MySQL
-	// mysql -uapps_user -h10.79.224.2 -p'Tb#<M#BnvBc%ur5q'
 	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/kiron"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
@@ -57,11 +92,18 @@ func main() {
 
 	for _, e := range events.KenoEvents {
 		_, err := db.Exec(insertStmt,
-			e.ID, e.EventType, e.EventNumber, e.EventTime, e.FinishTime, e.EventStatus,
-			events.LocalTime, events.UtcTime, events.RoundTripTime,
+			e.ID,
+			e.EventType,
+			e.EventNumber,
+			e.EventTime.Time,
+			e.FinishTime.Time,
+			e.EventStatus,
+			events.LocalTime.Time,
+			events.UtcTime.Time,
+			events.RoundTripTime.Time,
 		)
 		if err != nil {
-			log.Printf("Insert failed for ID %d: %v", e.ID, err)
+			log.Printf("⚠️ Insert failed for ID %d: %v", e.ID, err)
 		}
 	}
 
