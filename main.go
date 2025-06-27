@@ -74,6 +74,12 @@ func main() {
 		log.Fatalf("❌ Failed to parse XML: %v", err)
 	}
 
+	// Log all events
+	for _, e := range events.KenoEvents {
+		log.Printf("Event ID: %d, Type: %s, Number: %s, EventTime: %s, FinishTime: %s, Status: %s",
+			e.ID, e.EventType, e.EventNumber, e.EventTime.Format(time.RFC3339), e.FinishTime.Format(time.RFC3339), e.EventStatus)
+	}
+
 	// Connect to MySQL
 	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/kiron"
 	db, err := sql.Open("mysql", dsn)
@@ -127,21 +133,3 @@ func RunCron() {
 
 	c.Start()
 }
-
-// func RunCron() {
-// 	c := cron.New()
-
-// 	c.AddFunc("@every 05h05m00s", ArchiveOddsLive)
-// 	c.AddFunc("@every 08h00m05s", ArchiveFixtureStatus)
-// 	c.AddFunc("@every 24h00m05s", ArchiveFixtures)
-
-// 	c.AddFunc("@every 24h00m00s", FetchFootballMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchBasketballMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchTableTennisMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchTennisMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchRugbyLeagueMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchRugbyUnionMatchFixtures)
-// 	c.AddFunc("@every 24h00m00s", FetchCricketMatchFixtures)
-
-// 	c.Start()
-// }
