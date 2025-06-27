@@ -15,20 +15,28 @@ import (
 
 const endpoint = "http://vseintegration.kironinteractive.com:8013/vsegameserver/dataservice/UpcomingEvents?hours=4&type=Keno"
 
-// CustomTime handles timestamps without timezone info
+// CustomTime handles timestamps with multiple possible formats
 type CustomTime struct {
 	time.Time
 }
 
-const customLayout = "2006-01-02T15:04:05"
-
 func (ct *CustomTime) UnmarshalXMLAttr(attr xml.Attr) error {
-	t, err := time.Parse(customLayout, attr.Value)
-	if err != nil {
-		return err
+	formats := []string{
+		"2006-01-02T15:04:05",       // e.g. 2025-06-27T13:03:00 (no timezone)
+		"2006-01-02 15:04:05Z",      // e.g. 2025-06-27 13:02:47Z (UTC)
+		"2006-01-02T15:04:05Z07:00", // e.g. 2025-06-27T13:03:00+01:00 (full TZ offset)
 	}
-	ct.Time = t
-	return nil
+
+	var lastErr error
+	for _, layout := range formats {
+		t, err := time.Parse(layout, attr.Value)
+		if err == nil {
+			ct.Time = t
+			return nil
+		}
+		lastErr = err
+	}
+	return lastErr
 }
 
 type UpcomingEvents struct {
