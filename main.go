@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -100,15 +101,17 @@ type Results struct {
 
 func main() {
 	// Connect to DB once
-	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/kiron"
+	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/moss_play_b2b_keno"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
+	processUpcomingEvents(db)
+
 	// Start the cron scheduler
-	RunCron(db)
+	// RunCron(db)
 
 	// Block main forever (or use signal handling)
 	select {}
@@ -156,6 +159,85 @@ func RunCron(db *sql.DB) {
 	log.Println("✅ Cron scheduler started with different intervals")
 }
 
+// func processUpcomingEvents(db *sql.DB) error {
+// 	resp, err := http.Get(upcomingEventsEndpoint)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to fetch UpcomingEvents: %w", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	xmlData, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to read UpcomingEvents response: %w", err)
+// 	}
+
+// 	var events UpcomingEvents
+// 	if err := xml.Unmarshal(xmlData, &events); err != nil {
+// 		return fmt.Errorf("failed to unmarshal UpcomingEvents XML: %w", err)
+// 	}
+
+// 	// Log events
+// 	for _, e := range events.KenoEvents {
+// 		log.Printf("UpcomingEvent - ID: %d, Type: %s, Number: %s, EventTime: %s, FinishTime: %s, Status: %s",
+// 			e.ID, e.EventType, e.EventNumber, e.EventTime.Format(time.RFC3339), e.FinishTime.Format(time.RFC3339), e.EventStatus)
+// 	}
+
+// 	insertStmt := `
+// 	INSERT INTO keno_events (
+// 		id, event_type, event_number, event_time, finish_time, event_status,
+// 		local_time, utc_time, round_trip_time
+// 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+// 	ON DUPLICATE KEY UPDATE
+// 		event_type=VALUES(event_type),
+// 		event_number=VALUES(event_number),
+// 		event_time=VALUES(event_time),
+// 		finish_time=VALUES(finish_time),
+// 		event_status=VALUES(event_status),
+// 		local_time=VALUES(local_time),
+// 		utc_time=VALUES(utc_time),
+// 		round_trip_time=VALUES(round_trip_time)
+// 	`
+
+// 	for _, e := range events.KenoEvents {
+// 		_, err := db.Exec(insertStmt,
+// 			e.ID,
+// 			e.EventType,
+// 			e.EventNumber,
+// 			e.EventTime.Time,
+// 			e.FinishTime.Time,
+// 			e.EventStatus,
+// 			events.LocalTime.Time,
+// 			events.UtcTime.Time,
+// 			events.RoundTripTime.Time,
+// 		)
+// 		if err != nil {
+// 			log.Printf("⚠️ Insert failed for UpcomingEvent ID %d: %v", e.ID, err)
+// 		}
+// 	}
+
+// 	log.Println("✅ UpcomingEvents data inserted successfully.")
+// 	return nil
+// }
+
+func mapEventStatusToInt(status string) int {
+	switch status {
+	case "Scheduled":
+		return 1
+	case "Running":
+		return 2
+	case "Complete":
+		return 3
+	case "Cancelled":
+		return 4
+	default:
+		return 0
+	}
+}
+
+func parseEventNumber(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
 func processUpcomingEvents(db *sql.DB) error {
 	resp, err := http.Get(upcomingEventsEndpoint)
 	if err != nil {
@@ -173,46 +255,53 @@ func processUpcomingEvents(db *sql.DB) error {
 		return fmt.Errorf("failed to unmarshal UpcomingEvents XML: %w", err)
 	}
 
-	// Log events
-	for _, e := range events.KenoEvents {
-		log.Printf("UpcomingEvent - ID: %d, Type: %s, Number: %s, EventTime: %s, FinishTime: %s, Status: %s",
-			e.ID, e.EventType, e.EventNumber, e.EventTime.Format(time.RFC3339), e.FinishTime.Format(time.RFC3339), e.EventStatus)
-	}
-
 	insertStmt := `
 	INSERT INTO keno_events (
-		id, event_type, event_number, event_time, finish_time, event_status,
-		local_time, utc_time, round_trip_time
+		event_id, event_number, keno_event_id,
+		results, status_desc, status,
+		start_time_utc, end_time_utc,
+		created
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON DUPLICATE KEY UPDATE
-		event_type=VALUES(event_type),
-		event_number=VALUES(event_number),
-		event_time=VALUES(event_time),
-		finish_time=VALUES(finish_time),
-		event_status=VALUES(event_status),
-		local_time=VALUES(local_time),
-		utc_time=VALUES(utc_time),
-		round_trip_time=VALUES(round_trip_time)
+		results = VALUES(results),
+		status_desc = VALUES(status_desc),
+		status = VALUES(status),
+		start_time_utc = VALUES(start_time_utc),
+		end_time_utc = VALUES(end_time_utc),
+		updated = CURRENT_TIMESTAMP
 	`
 
+	now := time.Now().UTC()
+
 	for _, e := range events.KenoEvents {
-		_, err := db.Exec(insertStmt,
-			e.ID,
-			e.EventType,
-			e.EventNumber,
-			e.EventTime.Time,
-			e.FinishTime.Time,
-			e.EventStatus,
-			events.LocalTime.Time,
-			events.UtcTime.Time,
-			events.RoundTripTime.Time,
+		eventNumber, err := parseEventNumber(e.EventNumber)
+		if err != nil {
+			log.Printf("⚠️ Failed to parse EventNumber '%s': %v", e.EventNumber, err)
+			continue
+		}
+
+		statusInt := mapEventStatusToInt(e.EventStatus)
+
+		_, err = db.Exec(insertStmt,
+			e.ID,                    // event_id
+			eventNumber,             // event_number
+			e.ID,                    // keno_event_id
+			e.Result,                // results
+			e.EventStatus,           // status_desc
+			statusInt,               // status (mapped)
+			e.EventTime.Time.UTC(),  // start_time_utc
+			e.FinishTime.Time.UTC(), // end_time_utc
+			now,                     // created
 		)
+
 		if err != nil {
 			log.Printf("⚠️ Insert failed for UpcomingEvent ID %d: %v", e.ID, err)
+		} else {
+			log.Printf("✅ Inserted/Updated UpcomingEvent ID %d", e.ID)
 		}
 	}
 
-	log.Println("✅ UpcomingEvents data inserted successfully.")
+	log.Println("✅ UpcomingEvents data inserted into `keno_events` successfully.")
 	return nil
 }
 
