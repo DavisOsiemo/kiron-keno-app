@@ -109,11 +109,6 @@ func main() {
 	defer db.Close()
 
 	loc, _ := time.LoadLocation("Africa/Nairobi")
-	today := time.Now().In(loc)
-	log.Printf("🔄 Running processResults for date %s", today.Format("2006-01-02"))
-	if err := processResults(db, today); err != nil {
-		log.Printf("❌ Error processing Results: %v", err)
-	}
 
 	tickerUpcomingEvents := time.NewTicker(10 * time.Second)
 	defer tickerUpcomingEvents.Stop()
@@ -140,6 +135,19 @@ func main() {
 				if err := processKenoBallStats(db); err != nil {
 					log.Printf("❌ Error processing KenoBallStats: %v", err)
 				}
+			}
+		}
+	}()
+
+	// ✅ Ticker: processResults
+	tickerResults := time.NewTicker(5 * time.Second)
+	defer tickerResults.Stop()
+	go func() {
+		for range tickerResults.C {
+			now := time.Now().In(loc)
+			log.Printf("🔄 Running processResults for date %s", now.Format("2006-01-02"))
+			if err := processResults(db, now); err != nil {
+				log.Printf("❌ Error processing Results: %v", err)
 			}
 		}
 	}()
