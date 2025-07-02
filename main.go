@@ -293,13 +293,13 @@ func processKenoBallStats(db *sql.DB) error {
 
 	for _, g := range stats.LastGames {
 		_, err := db.Exec(insertStmt,
-			g.EventNumber,                         // event_number
-			g.ID,                                  // game_id
-			g.EventTime.Time.Format(time.RFC3339), // event_time
-			g.Draw,                                // draw
-			status,                                // status (can be modified based on game status)
-			stats.LocalTime.Time,                  // created
-			time.Now().UTC(),                      // updated
+			g.EventNumber, // event_number
+			g.ID,          // game_id
+			g.EventTime.Time.UTC().Format("2006-01-02 15:04:05"), // event_time
+			g.Draw,               // draw
+			status,               // status (can be modified based on game status)
+			stats.LocalTime.Time, // created
+			time.Now().UTC(),     // updated
 		)
 		if err != nil {
 			log.Printf("⚠️ Insert failed for KenoBallStats Game ID %d: %v", g.ID, err)
