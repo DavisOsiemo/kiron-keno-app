@@ -203,14 +203,14 @@ func RunCron(db *sql.DB) {
 
 func mapEventStatusToInt(status string) int {
 	switch status {
-	case "Scheduled":
+	case "Pending":
+		return 0
+	case "InProgress", "OpenForBetting":
 		return 1
-	case "Running":
+	case "Finished":
 		return 2
-	case "Complete":
+	case "BettingSuspended":
 		return 3
-	case "Cancelled":
-		return 4
 	default:
 		return 0
 	}
@@ -275,6 +275,11 @@ func processUpcomingEvents(db *sql.DB) error {
 			e.FinishTime.Time.UTC(), // end_time_utc
 			now,                     // created
 		)
+
+		// 0 Pending
+		// 1 InProgress, OpenForBetting
+		// 2 Finished
+		// 3 Suspended
 
 		if err != nil {
 			log.Printf("⚠️ Insert failed for UpcomingEvent ID %d: %v", e.ID, err)
