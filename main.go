@@ -108,10 +108,15 @@ func main() {
 	}
 	defer db.Close()
 
-	tickerUpcomingEvents := time.NewTicker(3 * time.Second)
-	defer tickerUpcomingEvents.Stop()
+	loc, _ := time.LoadLocation("Africa/Nairobi")
+	today := time.Now().In(loc)
+	log.Printf("🔄 Running processResults for date %s", today.Format("2006-01-02"))
+	if err := processResults(db, today); err != nil {
+		log.Printf("❌ Error processing Results: %v", err)
+	}
 
-	// Goroutine for processUpcomingEvents
+	tickerUpcomingEvents := time.NewTicker(10 * time.Second)
+	defer tickerUpcomingEvents.Stop()
 	go func() {
 		for {
 			select {
@@ -125,10 +130,8 @@ func main() {
 	}()
 
 	// Create a ticker for processKenoBallStats every 195 seconds (3 minutes and 15 seconds)
-	tickerKenoBallStats := time.NewTicker(5 * time.Second)
+	tickerKenoBallStats := time.NewTicker(10 * time.Second)
 	defer tickerKenoBallStats.Stop()
-
-	// Use a goroutine to continuously run the task at the interval
 	go func() {
 		for {
 			select {
@@ -341,68 +344,6 @@ func processKenoBallStats(db *sql.DB) error {
 	log.Println("✅ KenoBallStats LastGames data inserted successfully into keno_standings.")
 	return nil
 }
-
-// func processKenoBallStats(db *sql.DB) error {
-// 	resp, err := http.Get(kenoBallStatsEndpoint)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to fetch KenoBallStats: %w", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	xmlData, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to read KenoBallStats response: %w", err)
-// 	}
-
-// 	var stats KenoBallStats
-// 	if err := xml.Unmarshal(xmlData, &stats); err != nil {
-// 		return fmt.Errorf("failed to unmarshal KenoBallStats XML: %w", err)
-// 	}
-
-// 	// Log
-// 	log.Printf("KenoBallStats - LocalTime: %s, UtcTime: %s, RoundTripTime: %s",
-// 		stats.LocalTime.Format(time.RFC3339),
-// 		stats.UtcTime.Format(time.RFC3339),
-// 		stats.RoundTripTime.Format(time.RFC3339),
-// 	)
-
-// 	for _, g := range stats.LastGames {
-// 		log.Printf("Game - ID: %d, EventNumber: %s, EventTime: %s, Draw: %s",
-// 			g.ID, g.EventNumber, g.EventTime.Format(time.RFC3339), g.Draw)
-// 	}
-
-// 	// Insert LastGames into DB
-// 	insertGameStmt := `
-// 	INSERT INTO keno_ball_stats_games (
-// 		id, event_number, event_time, draw, local_time, utc_time, round_trip_time
-// 	) VALUES (?, ?, ?, ?, ?, ?, ?)
-// 	ON DUPLICATE KEY UPDATE
-// 		event_number=VALUES(event_number),
-// 		event_time=VALUES(event_time),
-// 		draw=VALUES(draw),
-// 		local_time=VALUES(local_time),
-// 		utc_time=VALUES(utc_time),
-// 		round_trip_time=VALUES(round_trip_time)
-// 	`
-
-// 	for _, g := range stats.LastGames {
-// 		_, err := db.Exec(insertGameStmt,
-// 			g.ID,
-// 			g.EventNumber,
-// 			g.EventTime.Time,
-// 			g.Draw,
-// 			stats.LocalTime.Time,
-// 			stats.UtcTime.Time,
-// 			stats.RoundTripTime.Time,
-// 		)
-// 		if err != nil {
-// 			log.Printf("⚠️ Insert failed for KenoBallStats Game ID %d: %v", g.ID, err)
-// 		}
-// 	}
-
-// 	log.Println("✅ KenoBallStats LastGames data inserted successfully.")
-// 	return nil
-// }
 
 func processResults(db *sql.DB, date time.Time) error {
 	url := fmt.Sprintf(resultsEndpointFormat, date.Year(), int(date.Month()), date.Day())
