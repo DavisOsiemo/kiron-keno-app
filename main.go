@@ -228,11 +228,11 @@ func processUpcomingEvents(db *sql.DB) error {
 
 	insertStmt := `
 	INSERT INTO keno_events (
-		event_id, event_number, keno_event_id,
+		event_number, keno_event_id,
 		results, status_desc, status,
 		start_time_utc, end_time_utc,
 		created
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	ON DUPLICATE KEY UPDATE
 		results = VALUES(results),
 		status_desc = VALUES(status_desc),
@@ -254,7 +254,7 @@ func processUpcomingEvents(db *sql.DB) error {
 		statusInt := mapEventStatusToInt(e.EventStatus)
 
 		_, err = db.Exec(insertStmt,
-			e.ID,                    // event_id
+			//e.ID,                    // event_id
 			eventNumber,             // event_number
 			e.ID,                    // keno_event_id
 			e.Result,                // results
