@@ -370,38 +370,22 @@ func processResults(db *sql.DB, date time.Time) error {
 			e.EventStatus, e.DrawMode, e.Result)
 	}
 
-	insertStmt := "INSERT INTO keno_results (" +
-		"id, event_type, event_number, event_time, finish_time, event_status, draw_mode, result," +
-		" local_time, utc_time, round_trip_time" +
-		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-		"ON DUPLICATE KEY UPDATE " +
-		"event_type = VALUES(event_type), " +
-		"event_number = VALUES(event_number), " +
-		"`event_time` = VALUES(`event_time`), " +
-		"`finish_time` = VALUES(`finish_time`), " +
-		"event_status = VALUES(event_status), " +
-		"draw_mode = VALUES(draw_mode), " +
-		"`result` = VALUES(`result`), " +
-		"`local_time` = VALUES(`local_time`), " +
-		"`utc_time` = VALUES(`utc_time`), " +
-		"`round_trip_time` = VALUES(`round_trip_time`)"
-
 	for _, e := range results.KenoEvents {
-		_, err := db.Exec(insertStmt,
-			e.ID,
-			e.EventType,
-			e.EventNumber,
-			e.EventTime.Time,
-			e.FinishTime.Time,
-			e.EventStatus,
-			e.DrawMode,
-			e.Result,
-			results.LocalTime.Time,
-			results.UtcTime.Time,
-			results.RoundTripTime.Time,
-		)
+		log.Printf("Result KenoEvent - ID: %d, Number: %s, EventTime: %s, FinishTime: %s, Status: %s, DrawMode: %s, Result: %s",
+			e.ID, e.EventNumber, e.EventTime.Format(time.RFC3339), e.FinishTime.Format(time.RFC3339),
+			e.EventStatus, e.DrawMode, e.Result)
+
+		// Update the result in keno_events
+		updateStmt := `
+		UPDATE keno_events
+		SET results = ?
+		WHERE keno_event_id = ?
+	`
+		_, err = db.Exec(updateStmt, e.Result, e.ID)
 		if err != nil {
-			log.Printf("⚠️ Insert failed for Result KenoEvent ID %d: %v", e.ID, err)
+			log.Printf("⚠️ Failed to update keno_events with result for ID %d: %v", e.ID, err)
+		} else {
+			log.Printf("✅ Updated keno_events.result for keno_event_id = %d", e.ID)
 		}
 	}
 
