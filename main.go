@@ -108,8 +108,22 @@ func main() {
 	}
 	defer db.Close()
 
-	// processUpcomingEvents(db)
-	processKenoBallStats(db)
+	// Create a ticker that ticks every 195 seconds
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	// Use a goroutine to continuously run the task at the interval
+	go func() {
+		for {
+			select {
+			case <-ticker.C: // Wait for the ticker to tick
+				log.Println("🔄 Running processKenoBallStats")
+				if err := processKenoBallStats(db); err != nil {
+					log.Printf("❌ Error processing KenoBallStats: %v", err)
+				}
+			}
+		}
+	}()
 
 	// Start the cron scheduler
 	// RunCron(db)
