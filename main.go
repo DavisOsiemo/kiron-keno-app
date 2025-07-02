@@ -370,23 +370,21 @@ func processResults(db *sql.DB, date time.Time) error {
 			e.EventStatus, e.DrawMode, e.Result)
 	}
 
-	insertStmt := `
-	INSERT INTO keno_results (
-		id, event_type, event_number, event_time, finish_time, event_status, draw_mode, result,
-		local_time, utc_time, round_trip_time
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	ON DUPLICATE KEY UPDATE
-		event_type=VALUES(event_type),
-		event_number=VALUES(event_number),
-		event_time=VALUES(event_time),
-		finish_time=VALUES(finish_time),
-		event_status=VALUES(event_status),
-		draw_mode=VALUES(draw_mode),
-		result=VALUES(result),
-		local_time=VALUES(local_time),
-		utc_time=VALUES(utc_time),
-		round_trip_time=VALUES(round_trip_time)
-	`
+	insertStmt := "INSERT INTO keno_results (" +
+		"id, event_type, event_number, event_time, finish_time, event_status, draw_mode, result," +
+		" local_time, utc_time, round_trip_time" +
+		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE " +
+		"event_type = VALUES(event_type), " +
+		"event_number = VALUES(event_number), " +
+		"`event_time` = VALUES(`event_time`), " +
+		"`finish_time` = VALUES(`finish_time`), " +
+		"event_status = VALUES(event_status), " +
+		"draw_mode = VALUES(draw_mode), " +
+		"`result` = VALUES(`result`), " +
+		"`local_time` = VALUES(`local_time`), " +
+		"`utc_time` = VALUES(`utc_time`), " +
+		"`round_trip_time` = VALUES(`round_trip_time`)"
 
 	for _, e := range results.KenoEvents {
 		_, err := db.Exec(insertStmt,
