@@ -108,15 +108,31 @@ func main() {
 	}
 	defer db.Close()
 
-	// Create a ticker that ticks every 195 seconds
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+	tickerUpcomingEvents := time.NewTicker(3 * time.Second)
+	defer tickerUpcomingEvents.Stop()
+
+	// Goroutine for processUpcomingEvents
+	go func() {
+		for {
+			select {
+			case <-tickerUpcomingEvents.C: // Wait for the ticker to tick
+				log.Println("🔄 Running processUpcomingEvents")
+				if err := processUpcomingEvents(db); err != nil {
+					log.Printf("❌ Error processing UpcomingEvents: %v", err)
+				}
+			}
+		}
+	}()
+
+	// Create a ticker for processKenoBallStats every 195 seconds (3 minutes and 15 seconds)
+	tickerKenoBallStats := time.NewTicker(5 * time.Second)
+	defer tickerKenoBallStats.Stop()
 
 	// Use a goroutine to continuously run the task at the interval
 	go func() {
 		for {
 			select {
-			case <-ticker.C: // Wait for the ticker to tick
+			case <-tickerKenoBallStats.C: // Wait for the ticker to tick
 				log.Println("🔄 Running processKenoBallStats")
 				if err := processKenoBallStats(db); err != nil {
 					log.Printf("❌ Error processing KenoBallStats: %v", err)
