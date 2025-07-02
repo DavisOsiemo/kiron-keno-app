@@ -159,66 +159,6 @@ func RunCron(db *sql.DB) {
 	log.Println("✅ Cron scheduler started with different intervals")
 }
 
-// func processUpcomingEvents(db *sql.DB) error {
-// 	resp, err := http.Get(upcomingEventsEndpoint)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to fetch UpcomingEvents: %w", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	xmlData, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to read UpcomingEvents response: %w", err)
-// 	}
-
-// 	var events UpcomingEvents
-// 	if err := xml.Unmarshal(xmlData, &events); err != nil {
-// 		return fmt.Errorf("failed to unmarshal UpcomingEvents XML: %w", err)
-// 	}
-
-// 	// Log events
-// 	for _, e := range events.KenoEvents {
-// 		log.Printf("UpcomingEvent - ID: %d, Type: %s, Number: %s, EventTime: %s, FinishTime: %s, Status: %s",
-// 			e.ID, e.EventType, e.EventNumber, e.EventTime.Format(time.RFC3339), e.FinishTime.Format(time.RFC3339), e.EventStatus)
-// 	}
-
-// 	insertStmt := `
-// 	INSERT INTO keno_events (
-// 		id, event_type, event_number, event_time, finish_time, event_status,
-// 		local_time, utc_time, round_trip_time
-// 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-// 	ON DUPLICATE KEY UPDATE
-// 		event_type=VALUES(event_type),
-// 		event_number=VALUES(event_number),
-// 		event_time=VALUES(event_time),
-// 		finish_time=VALUES(finish_time),
-// 		event_status=VALUES(event_status),
-// 		local_time=VALUES(local_time),
-// 		utc_time=VALUES(utc_time),
-// 		round_trip_time=VALUES(round_trip_time)
-// 	`
-
-// 	for _, e := range events.KenoEvents {
-// 		_, err := db.Exec(insertStmt,
-// 			e.ID,
-// 			e.EventType,
-// 			e.EventNumber,
-// 			e.EventTime.Time,
-// 			e.FinishTime.Time,
-// 			e.EventStatus,
-// 			events.LocalTime.Time,
-// 			events.UtcTime.Time,
-// 			events.RoundTripTime.Time,
-// 		)
-// 		if err != nil {
-// 			log.Printf("⚠️ Insert failed for UpcomingEvent ID %d: %v", e.ID, err)
-// 		}
-// 	}
-
-// 	log.Println("✅ UpcomingEvents data inserted successfully.")
-// 	return nil
-// }
-
 func mapEventStatusToInt(status string) int {
 	switch status {
 	case "Scheduled":
@@ -334,38 +274,104 @@ func processKenoBallStats(db *sql.DB) error {
 			g.ID, g.EventNumber, g.EventTime.Format(time.RFC3339), g.Draw)
 	}
 
-	// Insert LastGames into DB
-	insertGameStmt := `
-	INSERT INTO keno_ball_stats_games (
-		id, event_number, event_time, draw, local_time, utc_time, round_trip_time
+	// Insert into keno_standings
+	insertStmt := `
+	INSERT INTO keno_standings (
+		event_number, game_id, event_time, draw, status, created, updated
 	) VALUES (?, ?, ?, ?, ?, ?, ?)
 	ON DUPLICATE KEY UPDATE
-		event_number=VALUES(event_number),
-		event_time=VALUES(event_time),
-		draw=VALUES(draw),
-		local_time=VALUES(local_time),
-		utc_time=VALUES(utc_time),
-		round_trip_time=VALUES(round_trip_time)
+		event_number = VALUES(event_number),
+		event_time = VALUES(event_time),
+		draw = VALUES(draw),
+		status = VALUES(status),
+		updated = CURRENT_TIMESTAMP
 	`
 
+	// Set status to 1 (for example, if you're considering the status as "active" or "running")
+	status := 1 // Modify as needed depending on the status of the game
+
 	for _, g := range stats.LastGames {
-		_, err := db.Exec(insertGameStmt,
-			g.ID,
-			g.EventNumber,
-			g.EventTime.Time,
-			g.Draw,
-			stats.LocalTime.Time,
-			stats.UtcTime.Time,
-			stats.RoundTripTime.Time,
+		_, err := db.Exec(insertStmt,
+			g.EventNumber,                         // event_number
+			g.ID,                                  // game_id
+			g.EventTime.Time.Format(time.RFC3339), // event_time
+			g.Draw,                                // draw
+			status,                                // status (can be modified based on game status)
+			stats.LocalTime.Time,                  // created
+			time.Now().UTC(),                      // updated
 		)
 		if err != nil {
 			log.Printf("⚠️ Insert failed for KenoBallStats Game ID %d: %v", g.ID, err)
+		} else {
+			log.Printf("✅ Inserted/Updated Game ID %d into keno_standings", g.ID)
 		}
 	}
 
-	log.Println("✅ KenoBallStats LastGames data inserted successfully.")
+	log.Println("✅ KenoBallStats LastGames data inserted successfully into keno_standings.")
 	return nil
 }
+
+// func processKenoBallStats(db *sql.DB) error {
+// 	resp, err := http.Get(kenoBallStatsEndpoint)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to fetch KenoBallStats: %w", err)
+// 	}
+// 	defer resp.Body.Close()
+
+// 	xmlData, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to read KenoBallStats response: %w", err)
+// 	}
+
+// 	var stats KenoBallStats
+// 	if err := xml.Unmarshal(xmlData, &stats); err != nil {
+// 		return fmt.Errorf("failed to unmarshal KenoBallStats XML: %w", err)
+// 	}
+
+// 	// Log
+// 	log.Printf("KenoBallStats - LocalTime: %s, UtcTime: %s, RoundTripTime: %s",
+// 		stats.LocalTime.Format(time.RFC3339),
+// 		stats.UtcTime.Format(time.RFC3339),
+// 		stats.RoundTripTime.Format(time.RFC3339),
+// 	)
+
+// 	for _, g := range stats.LastGames {
+// 		log.Printf("Game - ID: %d, EventNumber: %s, EventTime: %s, Draw: %s",
+// 			g.ID, g.EventNumber, g.EventTime.Format(time.RFC3339), g.Draw)
+// 	}
+
+// 	// Insert LastGames into DB
+// 	insertGameStmt := `
+// 	INSERT INTO keno_ball_stats_games (
+// 		id, event_number, event_time, draw, local_time, utc_time, round_trip_time
+// 	) VALUES (?, ?, ?, ?, ?, ?, ?)
+// 	ON DUPLICATE KEY UPDATE
+// 		event_number=VALUES(event_number),
+// 		event_time=VALUES(event_time),
+// 		draw=VALUES(draw),
+// 		local_time=VALUES(local_time),
+// 		utc_time=VALUES(utc_time),
+// 		round_trip_time=VALUES(round_trip_time)
+// 	`
+
+// 	for _, g := range stats.LastGames {
+// 		_, err := db.Exec(insertGameStmt,
+// 			g.ID,
+// 			g.EventNumber,
+// 			g.EventTime.Time,
+// 			g.Draw,
+// 			stats.LocalTime.Time,
+// 			stats.UtcTime.Time,
+// 			stats.RoundTripTime.Time,
+// 		)
+// 		if err != nil {
+// 			log.Printf("⚠️ Insert failed for KenoBallStats Game ID %d: %v", g.ID, err)
+// 		}
+// 	}
+
+// 	log.Println("✅ KenoBallStats LastGames data inserted successfully.")
+// 	return nil
+// }
 
 func processResults(db *sql.DB, date time.Time) error {
 	url := fmt.Sprintf(resultsEndpointFormat, date.Year(), int(date.Month()), date.Day())
