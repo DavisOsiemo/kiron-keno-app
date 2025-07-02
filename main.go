@@ -108,7 +108,8 @@ func main() {
 	}
 	defer db.Close()
 
-	processUpcomingEvents(db)
+	// processUpcomingEvents(db)
+	processKenoBallStats(db)
 
 	// Start the cron scheduler
 	// RunCron(db)
