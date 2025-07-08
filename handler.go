@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Final response structure (clean JSON output)
 type KenoEventRow struct {
 	ID           int64     `json:"id"`
 	EventNumber  int64     `json:"event_number"`
@@ -21,14 +20,14 @@ type KenoEventRow struct {
 	EndTimeUTC   time.Time `json:"end_time_utc"`
 }
 
-// Handler function to fetch and return keno_events
 func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, event_number, keno_event_id, results, status_desc, status, start_time_utc, end_time_utc
-			FROM keno_events
+			FROM keno_events WHERE start_time_utc > NOW()
 			ORDER BY start_time_utc DESC
 		`)
+
 		if err != nil {
 			log.Printf("❌ Query error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query events"})
@@ -80,7 +79,6 @@ func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-// Helper function to convert sql.NullString to string safely
 func nullToEmpty(ns sql.NullString) string {
 	if ns.Valid {
 		return ns.String
@@ -88,14 +86,13 @@ func nullToEmpty(ns sql.NullString) string {
 	return ""
 }
 
-// Struct for JSON response
 type KenoStandingRow struct {
 	ID          int64  `json:"id"`
 	EventNumber int64  `json:"event_number"`
 	GameID      int64  `json:"game_id"`
 	Draw        string `json:"draw"`
 	Status      int    `json:"status"`
-	EventTime   string `json:"event_time"` // event_time is stored as VARCHAR
+	EventTime   string `json:"event_time"`
 	Created     string `json:"created"`
 	Updated     string `json:"updated"`
 }
@@ -104,7 +101,7 @@ func getKenoStandingsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, event_number, game_id, draw, status, event_time, created, updated
-			FROM keno_standings
+			FROM keno_standings WHERE start_time_utc > NOW()
 			ORDER BY created DESC
 		`)
 		if err != nil {
