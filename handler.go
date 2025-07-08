@@ -88,50 +88,47 @@ func nullToEmpty(ns sql.NullString) string {
 	return ""
 }
 
-// package main
+// Struct for JSON response
+type KenoStandingRow struct {
+	ID          int64  `json:"id"`
+	EventNumber int64  `json:"event_number"`
+	GameID      int64  `json:"game_id"`
+	Draw        string `json:"draw"`
+	Status      int    `json:"status"`
+	EventTime   string `json:"event_time"` // event_time is stored as VARCHAR
+	Created     string `json:"created"`
+	Updated     string `json:"updated"`
+}
 
-// import (
-// 	"database/sql"
-// 	"log"
-// 	"net/http"
-// 	"time"
+func getKenoStandingsHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rows, err := db.Query(`
+			SELECT id, event_number, game_id, draw, status, event_time, created, updated
+			FROM keno_standings
+			ORDER BY created DESC
+		`)
+		if err != nil {
+			log.Printf("❌ Query error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query standings"})
+			return
+		}
+		defer rows.Close()
 
-// 	"github.com/gin-gonic/gin"
-// )
+		var standings []KenoStandingRow
 
-// type KenoEventRow struct {
-// 	ID           int64     `json:"id"`
-// 	EventNumber  int64     `json:"event_number"`
-// 	KenoEventID  int64     `json:"keno_event_id"`
-// 	Results      string    `json:"results"`
-// 	StatusDesc   string    `json:"status_desc"`
-// 	Status       int       `json:"status"`
-// 	StartTimeUTC time.Time `json:"start_time_utc"`
-// 	EndTimeUTC   time.Time `json:"end_time_utc"`
-// }
+		for rows.Next() {
+			var s KenoStandingRow
+			if err := rows.Scan(
+				&s.ID, &s.EventNumber, &s.GameID, &s.Draw,
+				&s.Status, &s.EventTime, &s.Created, &s.Updated,
+			); err != nil {
+				log.Printf("❌ Scan error: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse standings"})
+				return
+			}
+			standings = append(standings, s)
+		}
 
-// func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
-// 	return func(c *gin.Context) {
-// 		rows, err := db.Query(`SELECT id, event_number, keno_event_id, results, status_desc, status, start_time_utc, end_time_utc FROM keno_events ORDER BY start_time_utc DESC`)
-// 		if err != nil {
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query events"})
-// 			return
-// 		}
-// 		defer rows.Close()
-
-// 		var events []KenoEventRow
-// 		for rows.Next() {
-// 			var e KenoEventRow
-// 			if err := rows.Scan(
-// 				&e.ID, &e.EventNumber, &e.KenoEventID, &e.Results, &e.StatusDesc, &e.Status, &e.StartTimeUTC, &e.EndTimeUTC,
-// 			); err != nil {
-// 				log.Printf("❌ Scan error: %v", err)
-// 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse events"})
-// 				return
-// 			}
-// 			events = append(events, e)
-// 		}
-
-// 		c.JSON(http.StatusOK, events)
-// 	}
-// }
+		c.JSON(http.StatusOK, standings)
+	}
+}

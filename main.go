@@ -160,7 +160,9 @@ func main() {
 
 	go func() {
 		r := gin.Default()
-		r.GET("/keno-events", getKenoEventsHandler(db)) // Your new endpoint
+		r.GET("/keno-events", getKenoEventsHandler(db))
+		r.GET("/keno-standings", getKenoStandingsHandler(db))
+
 		log.Println("🚀 Starting Gin server on :8080")
 		if err := r.Run(":8080"); err != nil {
 			log.Fatalf("❌ Failed to run Gin server: %v", err)
