@@ -312,7 +312,7 @@ func processKenoBallStats(db *sql.DB) error {
 		_, err := db.Exec(insertStmt,
 			g.EventNumber, // event_number
 			g.ID,          // game_id
-			g.EventTime.Time.UTC().Format("2006-01-02 15:04:05"), // event_time
+			g.EventTime.Time.UTC().Format("2006-01-02 15:04:05"), // event_time (datetime string)
 			g.Draw,               // draw
 			status,               // status (can be modified based on game status)
 			stats.LocalTime.Time, // created
