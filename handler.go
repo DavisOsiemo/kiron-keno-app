@@ -99,11 +99,7 @@ type KenoStandingRow struct {
 
 func getKenoStandingsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rows, err := db.Query(`
-			SELECT id, event_number, game_id, draw, status, event_time, created, updated
-			FROM keno_standings WHERE event_time > NOW()
-			ORDER BY created DESC
-		`)
+		rows, err := db.Query(`SELECT id, event_number, game_id, draw, status, event_time, created, updated FROM keno_standings WHERE event_time ORDER BY created DESC`)
 		if err != nil {
 			log.Printf("❌ Query error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query standings"})
