@@ -101,7 +101,7 @@ func getKenoStandingsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, event_number, game_id, draw, status, event_time, created, updated
-			FROM keno_standings WHERE start_time_utc > NOW()
+			FROM keno_standings WHERE event_time > NOW()
 			ORDER BY created DESC
 		`)
 		if err != nil {
