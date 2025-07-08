@@ -17,16 +17,13 @@ type KenoEventRow struct {
 	Status       int       `json:"status"`
 	StartTimeUTC time.Time `json:"start_time_utc"`
 	EndTimeUTC   time.Time `json:"end_time_utc"`
-	Created      time.Time `json:"created"`
-	Updated      time.Time `json:"updated"`
 }
 
 func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, event_number, keno_event_id, results, status_desc, status,
-			       start_time_utc, end_time_utc, created, updated
-			FROM keno_events
+			       start_time_utc, end_time_utc FROM keno_events
 			ORDER BY start_time_utc DESC
 			LIMIT 100
 		`)
@@ -42,7 +39,7 @@ func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 			if err := rows.Scan(
 				&e.ID, &e.EventNumber, &e.KenoEventID, &e.Results,
 				&e.StatusDesc, &e.Status,
-				&e.StartTimeUTC, &e.EndTimeUTC, &e.Created, &e.Updated,
+				&e.StartTimeUTC, &e.EndTimeUTC,
 			); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse events"})
 				return
