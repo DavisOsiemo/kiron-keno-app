@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/robfig/cron/v3"
 )
 
 const (
@@ -100,6 +100,7 @@ type Results struct {
 }
 
 func main() {
+
 	// Connect to DB once
 	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/moss_play_b2b_keno"
 	db, err := sql.Open("mysql", dsn)
@@ -108,9 +109,13 @@ func main() {
 	}
 	defer db.Close()
 
-	loc, _ := time.LoadLocation("Africa/Nairobi")
+	if err := db.Ping(); err != nil {
+		log.Fatalf("❌ DB connection test failed: %v", err)
+	}
 
-	tickerUpcomingEvents := time.NewTicker(10 * time.Second)
+	loc, _ := time.LoadLocation("Africa/Nairobi") // UTC
+
+	tickerUpcomingEvents := time.NewTicker(60 * time.Second)
 	defer tickerUpcomingEvents.Stop()
 	go func() {
 		for {
@@ -125,7 +130,7 @@ func main() {
 	}()
 
 	// Create a ticker for processKenoBallStats every 195 seconds (3 minutes and 15 seconds)
-	tickerKenoBallStats := time.NewTicker(10 * time.Second)
+	tickerKenoBallStats := time.NewTicker(195 * time.Second)
 	defer tickerKenoBallStats.Stop()
 	go func() {
 		for {
@@ -140,7 +145,7 @@ func main() {
 	}()
 
 	// ✅ Ticker: processResults
-	tickerResults := time.NewTicker(5 * time.Second)
+	tickerResults := time.NewTicker(165 * time.Second)
 	defer tickerResults.Stop()
 	go func() {
 		for range tickerResults.C {
@@ -152,53 +157,16 @@ func main() {
 		}
 	}()
 
-	// Start the cron scheduler
-	// RunCron(db)
+	go func() {
+		r := gin.Default()
+		r.GET("/keno-events", getKenoEventsHandler(db)) // Your new endpoint
+		log.Println("🚀 Starting Gin server on :8080")
+		if err := r.Run(":8080"); err != nil {
+			log.Fatalf("❌ Failed to run Gin server: %v", err)
+		}
+	}()
 
-	// Block main forever (or use signal handling)
 	select {}
-}
-
-func RunCron(db *sql.DB) {
-	loc, _ := time.LoadLocation("Africa/Nairobi")
-	c := cron.New(cron.WithLocation(loc))
-
-	// Schedule: every 2 minutes
-	_, err := c.AddFunc("*/1 * * * *", func() {
-		log.Println("🔄 Running processUpcomingEvents")
-		if err := processUpcomingEvents(db); err != nil {
-			log.Printf("❌ Error processing UpcomingEvents: %v", err)
-		}
-	})
-	if err != nil {
-		log.Fatalf("Failed to schedule processUpcomingEvents: %v", err)
-	}
-
-	// Schedule: every 5 minutes
-	_, err = c.AddFunc("*/2 * * * *", func() {
-		log.Println("🔄 Running processKenoBallStats")
-		if err := processKenoBallStats(db); err != nil {
-			log.Printf("❌ Error processing KenoBallStats: %v", err)
-		}
-	})
-	if err != nil {
-		log.Fatalf("Failed to schedule processKenoBallStats: %v", err)
-	}
-
-	// Schedule: every 10 minutes
-	_, err = c.AddFunc("*/3 * * * *", func() {
-		today := time.Now().In(loc)
-		log.Printf("🔄 Running processResults for date %s", today.Format("2006-01-02"))
-		if err := processResults(db, today); err != nil {
-			log.Printf("❌ Error processing Results: %v", err)
-		}
-	})
-	if err != nil {
-		log.Fatalf("Failed to schedule processResults: %v", err)
-	}
-
-	c.Start()
-	log.Println("✅ Cron scheduler started with different intervals")
 }
 
 func mapEventStatusToInt(status string) int {
