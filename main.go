@@ -102,7 +102,8 @@ type Results struct {
 func main() {
 
 	// Connect to DB once
-	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/moss_play_b2b_keno"
+	// dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/moss_play_b2b_keno"
+	dsn := "apps_user:Tb#<M#BnvBc%ur5q@tcp(10.79.224.2:3306)/moss_play_b2b_keno?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
