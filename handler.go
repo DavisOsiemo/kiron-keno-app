@@ -21,12 +21,7 @@ type KenoEventRow struct {
 
 func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rows, err := db.Query(`
-			SELECT id, event_number, keno_event_id, results, status_desc, status,
-			       start_time_utc, end_time_utc FROM keno_events
-			ORDER BY start_time_utc DESC
-			LIMIT 100
-		`)
+		rows, err := db.Query(`SELECT id, event_number, keno_event_id, results, status_desc, status, start_time_utc, end_time_utc FROM keno_events ORDER BY start_time_utc DESC`)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query events"})
 			return
