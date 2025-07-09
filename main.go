@@ -247,11 +247,6 @@ func processUpcomingEvents(db *sql.DB) error {
 			now,                     // created
 		)
 
-		// 0 Pending
-		// 1 InProgress, OpenForBetting
-		// 2 Finished
-		// 3 Suspended
-
 		if err != nil {
 			log.Printf("⚠️ Insert failed for UpcomingEvent ID %d: %v", e.ID, err)
 		} else {

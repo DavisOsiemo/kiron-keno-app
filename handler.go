@@ -24,7 +24,7 @@ func getKenoEventsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rows, err := db.Query(`
 			SELECT id, event_number, keno_event_id, results, status_desc, status, start_time_utc, end_time_utc
-			FROM keno_events WHERE start_time_utc > NOW()
+			FROM keno_events WHERE start_time_utc > NOW() AND status = 1
 			ORDER BY start_time_utc DESC
 		`)
 
